@@ -53,7 +53,7 @@ Agentのメニューに現在の状態が表示されます。ターミナルな
 
 ## リリース
 
-`v*` のタグを push すると GitHub Actions が iOS アプリのビルド確認と、Mac エージェント（Universal・ad-hoc署名）の zip 作成を行い、GitHub Release に添付します。
+`VERSION` の版を上げて main に push すると、GitHub Actions が iOS アプリのビルド確認と、Mac エージェント（Universal・ad-hoc署名）の zip 作成を行い、その版のタグと GitHub Release を作って zip を添付します（同じ版がすでにあれば何もしません）。
 
 ## ライセンス
 
