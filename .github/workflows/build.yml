@@ -17,7 +17,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Xcode version
-        run: xcodebuild -version
+        run: |
+          xcodebuild -version
+          mkdir -p build
 
       - name: Build iOS app (unsigned, compile check)
         run: |
@@ -25,19 +27,25 @@ jobs:
           xcodebuild -project WakeMac.xcodeproj -scheme WakeMac \
             -destination 'generic/platform=iOS' -configuration Release \
             -derivedDataPath build/ios \
-            CODE_SIGNING_ALLOWED=NO build | tee build/ios.log | grep -E "error:|warning: .*deprecated|BUILD" || true
+            CODE_SIGNING_ALLOWED=NO build > build/ios.log 2>&1 || true
+          grep -E "error:|BUILD" build/ios.log | tail -40 || true
+          grep -E "^/.*: error: " build/ios.log | sort -u | sed -E 's#^(/[^:]+):([0-9]+):([0-9]+): error: (.*)#::error file=\1,line=\2,col=\3::\4#' || true
+          grep -E "error:" build/ios.log | grep -vE "^/" | sort -u | head -10 | sed 's/^/::error::ios: /' || true
           grep -q "BUILD SUCCEEDED" build/ios.log
 
       - name: Build Mac agent (Release, ad-hoc signed)
+        if: always()
         run: |
           set -o pipefail
-          mkdir -p build
           xcodebuild -project WakeMac.xcodeproj -scheme WakeMacAgent \
             -destination 'generic/platform=macOS' -configuration Release \
             -derivedDataPath build/mac \
             ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
-            build | tee build/mac.log | grep -E "error:|BUILD" || true
+            build > build/mac.log 2>&1 || true
+          grep -E "error:|BUILD" build/mac.log | tail -40 || true
+          grep -E "^/.*: error: " build/mac.log | sort -u | sed -E 's#^(/[^:]+):([0-9]+):([0-9]+): error: (.*)#::error file=\1,line=\2,col=\3::\4#' || true
+          grep -E "error:" build/mac.log | grep -vE "^/" | sort -u | head -10 | sed 's/^/::error::mac: /' || true
           grep -q "BUILD SUCCEEDED" build/mac.log
 
       - name: Package Mac agent
