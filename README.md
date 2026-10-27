@@ -2,17 +2,18 @@
 
 iPhoneのボタン1つで、スリープ中のMacを起こすアプリ。
 
+- 紹介サイト: https://wakemac.ours-blanc.app/
+- Mac版（WakeMac Agent）: [最新リリースをダウンロード](https://github.com/SpiceOfLife/wakemac/releases/latest/download/WakeMac-Agent-macOS.zip)
+- iPhone版: App Store 公開準備中（下の手順でソースからビルドできます）
+- プライバシーポリシー: https://wakemac.ours-blanc.app/privacy/
+
 - **WakeMac（iOS）** … 大きな電源ボタン。押すとMacへ起動信号を送り、起動を確認すると緑に変わる
 - **WakeMac Agent（macOS）** … メニューバー常駐。自分のMACアドレス/IPをBonjourで広告し、iPhoneからの確認・スリープ命令に応答
 
 ## ビルド
 
-```sh
-brew install xcodegen
-cd WakeMac
-xcodegen generate
-open WakeMac.xcodeproj
-```
+`WakeMac.xcodeproj` をそのまま Xcode で開けます（Xcode 16 以降）。
+プロジェクトファイルは `design/genproj.py` から生成しています（ファイルを足したら `python3 design/genproj.py .` を再実行）。
 
 1. `WakeMacAgent` スキームを選んで Mac で実行（メニューバーに電源アイコン）
 2. メニューの「ログイン時に起動」をON
@@ -49,3 +50,11 @@ Agentのメニューに現在の状態が表示されます。ターミナルな
 
 - Agentの `SLEEP` コマンドは同じLANの誰でも送れます。家庭内LANでの利用を想定しています
 - 外出先からの起動は対象外（同じLAN内のみ）。必要ならVPN（Tailscale等）経由で同じLANに入る形が簡単です
+
+## リリース
+
+`v*` のタグを push すると GitHub Actions が iOS アプリのビルド確認と、Mac エージェント（Universal・ad-hoc署名）の zip 作成を行い、GitHub Release に添付します。
+
+## ライセンス
+
+MIT
