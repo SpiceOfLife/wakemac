@@ -4,14 +4,17 @@ import AppKit
 
 @main
 struct WakeMacAgentApp: App {
-    @StateObject private var server = AgentServer()
+    @ObservedObject private var server = AgentServer.shared
+
+    init() {
+        AgentServer.shared.start()
+    }
 
     var body: some Scene {
         MenuBarExtra {
             AgentMenu().environmentObject(server)
         } label: {
             Image(systemName: server.isRunning ? "power.circle.fill" : "power.circle")
-                .task { server.start() }
         }
         .menuBarExtraStyle(.window)
     }

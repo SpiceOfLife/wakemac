@@ -18,5 +18,6 @@
 	<key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationPortraitUpsideDown</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
 	<key>NSLocalNetworkUsageDescription</key><string>同じネットワーク上のMacを探して起動するために使います。</string>
 	<key>NSBonjourServices</key><array><string>_wakemac._tcp</string></array>
+	<key>ITSAppUsesNonExemptEncryption</key><false/>
 </dict>
 </plist>

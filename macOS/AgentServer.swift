@@ -4,6 +4,8 @@ import Network
 /// Bonjourで自分を広告し、iPhoneからの PING / SLEEP を受け付ける小さなTCPサーバー
 @MainActor
 final class AgentServer: ObservableObject {
+    static let shared = AgentServer()
+
     @Published private(set) var info: NetworkInfo?
     @Published private(set) var isRunning = false
     @Published private(set) var lastError: String?
@@ -14,7 +16,11 @@ final class AgentServer: ObservableObject {
 
     var macName: String { Host.current().localizedName ?? "Mac" }
 
+    private var started = false
+
     func start() {
+        guard !started else { return }
+        started = true
         refreshWakeSetting()
         do {
             let params = NWParameters.tcp

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0B1026"/>
+      <stop offset="0.62" stop-color="#1B2457"/>
+      <stop offset="1" stop-color="#E9845A"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="1.02" r="0.62">
+      <stop offset="0" stop-color="#FFD58A" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#F59A5E" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#F59A5E" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <rect width="1024" height="1024" fill="url(#sun)"/>
+  <g fill="#FFFFFF" opacity="0.75">
+    <circle cx="214" cy="226" r="6"/><circle cx="318" cy="150" r="4"/><circle cx="792" cy="196" r="5"/>
+    <circle cx="866" cy="320" r="3.5"/><circle cx="150" cy="392" r="3.5"/><circle cx="700" cy="118" r="3"/>
+  </g>
+  <g filter="url(#glow)" stroke="#FFF6E6" stroke-width="62" stroke-linecap="round" fill="none">
+    <path d="M 377 360 A 205 205 0 1 0 647 360"/>
+    <line x1="512" y1="268" x2="512" y2="500"/>
+  </g>
+</svg>

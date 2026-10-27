@@ -15,5 +15,6 @@
 	<key>LSUIElement</key><true/>
 	<key>NSLocalNetworkUsageDescription</key><string>iPhoneからこのMacを見つけて起動できるようにするために使います。</string>
 	<key>NSBonjourServices</key><array><string>_wakemac._tcp</string></array>
+	<key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
 </dict>
 </plist>

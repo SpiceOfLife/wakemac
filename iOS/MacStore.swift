@@ -44,7 +44,7 @@ final class MacStore: ObservableObject {
     }
 
     func remove(at offsets: IndexSet) {
-        macs.remove(atOffsets: offsets)
+        for i in offsets.sorted(by: >) { macs.remove(at: i) }
     }
 
     /// 起動ボタン: マジックパケット送信 → 起動確認を最大30秒ポーリング
