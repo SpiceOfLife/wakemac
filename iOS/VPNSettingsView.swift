@@ -57,7 +57,7 @@ struct VPNSettingsView: View {
                     } header: {
                         Text("認証")
                     } footer: {
-                        Text("パスワードと事前共有鍵は、このiPhoneのキーチェーンにだけ保存します。")
+                        Text("パスワードと事前共有鍵は、このiPhoneのキーチェーンにだけ保存します。この機能をオフにして保存すると削除されます。")
                     }
 
                     Section {
@@ -105,7 +105,10 @@ struct VPNSettingsView: View {
         if !password.isEmpty { vpn.setPassword(password); password = "" }
         if !sharedSecret.isEmpty { vpn.setSharedSecret(sharedSecret); sharedSecret = "" }
         vpn.settings = draft
-        guard draft.enabled else { return true }
+        guard draft.enabled else {
+            await vpn.removeAll()   // オフにしたら構成とパスワードを消す
+            return true
+        }
         do {
             try await vpn.apply()
             return true

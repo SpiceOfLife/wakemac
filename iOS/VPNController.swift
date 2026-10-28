@@ -172,6 +172,20 @@ final class VPNController: ObservableObject {
         throw VPNError.timeout
     }
 
+    /// 外出先機能をオフにしたとき：VPN構成とキーチェーンの秘密情報を消す
+    func removeAll() async {
+        disconnectIfStartedByApp()
+        Keychain.set("", account: "vpn.password")
+        Keychain.set("", account: "vpn.sharedSecret")
+        try? await load()
+        if manager.protocolConfiguration != nil {
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                manager.removeFromPreferences { _ in c.resume() }
+            }
+        }
+        status = .invalid
+    }
+
     func disconnectIfStartedByApp() {
         guard startedByApp else { return }
         startedByApp = false
