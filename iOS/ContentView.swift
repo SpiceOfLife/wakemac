@@ -4,6 +4,7 @@ struct ContentView: View {
     @EnvironmentObject var store: MacStore
     @EnvironmentObject var browser: MacBrowser
     @State private var showAdd = false
+    @State private var showVPN = false
 
     var body: some View {
         NavigationStack {
@@ -26,11 +27,16 @@ struct ContentView: View {
             }
             .navigationTitle("WakeMac")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showVPN = true } label: { Image(systemName: "lock.shield") }
+                        .accessibilityLabel("外出先から使う（VPN）")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showAdd = true } label: { Image(systemName: "plus") }
                 }
             }
             .sheet(isPresented: $showAdd) { AddMacView() }
+            .sheet(isPresented: $showVPN) { VPNSettingsView() }
         }
     }
 
@@ -54,51 +60,54 @@ struct ContentView: View {
 
 struct WakeCard: View {
     @EnvironmentObject var store: MacStore
+    @ObservedObject private var vpn = VPNController.shared
     let mac: SavedMac
     let large: Bool
     @State private var confirmDelete = false
 
     private var status: MacStatus { store.status[mac.id] ?? .unknown }
+    private var busy: Bool { store.isBusy(mac) }
+    private var isOn: Bool { status == .online }
 
     var body: some View {
         VStack(spacing: large ? 28 : 14) {
-            Text(mac.name)
-                .font(large ? .title2.bold() : .headline)
+            VStack(spacing: 6) {
+                Text(mac.name)
+                    .font(large ? .title2.bold() : .headline)
+                routeBadge
+            }
 
             Button {
-                let gen = UIImpactFeedbackGenerator(style: .heavy)
-                gen.impactOccurred()
-                Task { await store.wake(mac) }
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                Task { await store.toggle(mac) }
             } label: {
                 ZStack {
-                    Circle()
-                        .fill(buttonColor.opacity(0.18))
-                    Circle()
-                        .strokeBorder(buttonColor, lineWidth: large ? 4 : 3)
-                    if status == .waking {
+                    Circle().fill(buttonColor.opacity(0.18))
+                    Circle().strokeBorder(buttonColor, lineWidth: large ? 4 : 3)
+                    if busy {
                         ProgressView().controlSize(.large).tint(buttonColor)
                     } else {
-                        Image(systemName: "power")
+                        Image(systemName: isOn ? "moon.fill" : "power")
                             .font(.system(size: large ? 72 : 36, weight: .semibold))
                             .foregroundStyle(buttonColor)
+                            .contentTransition(.symbolEffect(.replace))
                     }
                 }
                 .frame(width: large ? 200 : 96, height: large ? 200 : 96)
             }
             .buttonStyle(.plain)
-            .disabled(status == .waking)
-            .accessibilityLabel("\(mac.name)を起動")
+            .disabled(busy)
+            .accessibilityLabel(isOn ? "\(mac.name)をスリープ" : "\(mac.name)を起動")
 
             Text(statusText)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(statusIsError ? Color.orange : Color.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 20) {
-                Button("状態を確認") { Task { await store.check(mac) } }
-                Button("スリープ") { Task { await store.sleep(mac) } }
-                    .disabled(status != .online)
-            }
-            .font(.footnote)
+            Button("状態を確認") { Task { await store.refreshAll() } }
+                .font(.footnote)
+                .disabled(busy)
 
             Text("\(mac.ip)  ·  \(mac.mac)")
                 .font(.caption2.monospaced())
@@ -117,10 +126,29 @@ struct WakeCard: View {
         }
     }
 
+    @ViewBuilder private var routeBadge: some View {
+        switch store.route {
+        case .vpn:
+            Label("VPN経由（外出先）", systemImage: "lock.shield.fill")
+                .font(.caption).foregroundStyle(.blue)
+        case .local:
+            Label("家のネットワーク", systemImage: "house.fill")
+                .font(.caption).foregroundStyle(.secondary)
+        case .none:
+            EmptyView()
+        }
+    }
+
+    private var statusIsError: Bool {
+        if case .failed = status { return true }
+        return false
+    }
+
     private var buttonColor: Color {
         switch status {
-        case .online: return .green
-        case .offline: return .orange
+        case .online: return .indigo
+        case .asleep: return .orange
+        case .failed: return .gray
         default: return .accentColor
         }
     }
@@ -129,9 +157,12 @@ struct WakeCard: View {
         switch status {
         case .unknown: return "ボタンを押すと起動します"
         case .checking: return "確認中…"
-        case .waking: return "起動信号を送信中…"
-        case .online: return "起動しています"
-        case .offline: return "応答がありません"
+        case .connectingVPN: return "自宅にVPN接続しています…"
+        case .waking: return "起動しています…"
+        case .sleeping: return "スリープさせています…"
+        case .online: return "起きています。押すとスリープします"
+        case .asleep: return "スリープ中です。押すと起動します"
+        case .failed(let msg): return msg
         }
     }
 }

@@ -67,7 +67,7 @@ def target(name, tag, srcs, product, ptype_settings_debug, sdk, assets):
 
 common = {"SWIFT_VERSION":"5.0","MARKETING_VERSION":"1.0","CURRENT_PROJECT_VERSION":"1","CODE_SIGN_STYLE":"Automatic","GENERATE_INFOPLIST_FILE":"NO","ENABLE_PREVIEWS":"YES","ASSETCATALOG_COMPILER_APPICON_NAME":"AppIcon"}
 ios_set = dict(common, **{"SDKROOT":"iphoneos","IPHONEOS_DEPLOYMENT_TARGET":"17.0","TARGETED_DEVICE_FAMILY":'"1,2"',
-  "PRODUCT_BUNDLE_IDENTIFIER":"app.oursblanc.wakemac","PRODUCT_NAME":"WakeMac","INFOPLIST_FILE":"iOS/Info.plist",
+  "PRODUCT_BUNDLE_IDENTIFIER":"app.oursblanc.wakemac","PRODUCT_NAME":"WakeMac","INFOPLIST_FILE":"iOS/Info.plist","CODE_SIGN_ENTITLEMENTS":"iOS/WakeMac.entitlements",
   "LD_RUNPATH_SEARCH_PATHS":'"$(inherited) @executable_path/Frameworks"', "DEVELOPMENT_TEAM":"93YM59H7UW","INFOPLIST_KEY_LSApplicationCategoryType":"public.app-category.utilities"})
 mac_set = dict(common, **{"SDKROOT":"macosx","MACOSX_DEPLOYMENT_TARGET":"13.0",
   "PRODUCT_BUNDLE_IDENTIFIER":"app.oursblanc.wakemac.agent","PRODUCT_NAME":'"WakeMac Agent"',"INFOPLIST_FILE":"macOS/Info.plist",
