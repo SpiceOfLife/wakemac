@@ -18,9 +18,21 @@ enum WakeProtocol {
     static let keyIP = "ip"
     static let keyMask = "mask"
     static let keyName = "name"
+    static let keyState = "state"          // "awake" / "asleep"（Macが自分で更新する）
+    static let stateAwake = "awake"
+    static let stateAsleep = "asleep"
 
     // TCPコマンド
     static let cmdPing = "PING"
     static let cmdPong = "PONG"
-    static let cmdSleep = "SLEEP"
+    static let cmdSleep = "SLEEP"        // "SLEEP 10" = 10秒のカウントダウン後にスリープ
+    static let cmdCancel = "CANCEL"      // カウントダウンを止める
+    static let cmdWake = "WAKE"          // 暗いままの起動（ダークウェイク）から完全に起こす
+    static let defaultSleepDelay = 10
+
+    // 応答
+    static let replyCountdown = "COUNTDOWN"   // "COUNTDOWN 10"
+    static let replyPending = "PENDING"       // "PONG PENDING 7"（カウントダウン中・残り秒）
+    static let replyCanceled = "CANCELED"     // "PONG CANCELED"（直前にMac側で止められた）
+    static let replySleeping = "SLEEPING"     // "PONG SLEEPING"（システムはスリープ扱い。通信で一時的に目覚めただけ）
 }

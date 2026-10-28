@@ -28,8 +28,8 @@ struct ContentView: View {
             .navigationTitle("WakeMac")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { showVPN = true } label: { Image(systemName: "lock.shield") }
-                        .accessibilityLabel("外出先から使う（VPN）")
+                    Button { showVPN = true } label: { Image(systemName: "gearshape") }
+                        .accessibilityLabel("設定")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showAdd = true } label: { Image(systemName: "plus") }
@@ -67,7 +67,11 @@ struct WakeCard: View {
 
     private var status: MacStatus { store.status[mac.id] ?? .unknown }
     private var busy: Bool { store.isBusy(mac) }
-    private var isOn: Bool { status == .online }
+    private var isOn: Bool { status == .online || status == .canceledOnMac }
+    private var pendingSeconds: Int? {
+        if case .sleepPending(let n) = status { return n }
+        return nil
+    }
 
     var body: some View {
         VStack(spacing: large ? 28 : 14) {
@@ -84,7 +88,14 @@ struct WakeCard: View {
                 ZStack {
                     Circle().fill(buttonColor.opacity(0.18))
                     Circle().strokeBorder(buttonColor, lineWidth: large ? 4 : 3)
-                    if busy {
+                    if let n = pendingSeconds {
+                        Text("\(n)")
+                            .font(.system(size: large ? 80 : 40, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(buttonColor)
+                            .contentTransition(.numericText(countsDown: true))
+                            .animation(.default, value: n)
+                    } else if busy {
                         ProgressView().controlSize(.large).tint(buttonColor)
                     } else {
                         Image(systemName: isOn ? "moon.fill" : "power")
@@ -105,9 +116,27 @@ struct WakeCard: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button("状態を確認") { Task { await store.refreshAll() } }
-                .font(.footnote)
-                .disabled(busy)
+            if pendingSeconds != nil {
+                Button(role: .destructive) {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    Task { await store.cancelSleep(mac) }
+                } label: {
+                    Label("スリープを中止", systemImage: "xmark.circle.fill")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(large ? .large : .regular)
+            } else {
+                VStack(spacing: 2) {
+                    Button("今すぐ確認") { Task { await store.refreshAll(auto: false) } }
+                        .font(.footnote)
+                        .disabled(busy)
+                    if let t = store.lastChecked {
+                        Text("10秒ごとに自動確認・最終 \(t.formatted(date: .omitted, time: .standard))")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
 
             Text("\(mac.ip)  ·  \(mac.mac)")
                 .font(.caption2.monospaced())
@@ -146,7 +175,7 @@ struct WakeCard: View {
 
     private var buttonColor: Color {
         switch status {
-        case .online: return .indigo
+        case .online, .canceledOnMac, .sleepPending: return .indigo
         case .asleep: return .orange
         case .failed: return .gray
         default: return .accentColor
@@ -160,6 +189,8 @@ struct WakeCard: View {
         case .connectingVPN: return "自宅にVPN接続しています…"
         case .waking: return "起動しています…"
         case .sleeping: return "スリープさせています…"
+        case .sleepPending(let n): return "Macに\(n)秒のカウントダウンを表示中。Macの前の人も止められます"
+        case .canceledOnMac: return "Macの前でスリープがキャンセルされました（起きています）"
         case .online: return "起きています。押すとスリープします"
         case .asleep: return "スリープ中です。押すと起動します"
         case .failed(let msg): return msg
