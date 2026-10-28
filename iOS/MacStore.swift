@@ -13,7 +13,9 @@ enum MacStatus: Equatable {
     case checking       // 確認中
     case connectingVPN  // 自宅にVPN接続中
     case waking         // 起こしている
-    case sleeping       // スリープさせている
+    case sleeping       // スリープの命令を送っている
+    case sleepPending(Int) // Macでカウントダウン中（残り秒）
+    case canceledOnMac  // Macの前でキャンセルされた（起きている）
     case online         // 起きている
     case asleep         // 寝ている（応答なし）
     case failed(String) // つながらなかった等
@@ -31,6 +33,7 @@ final class MacStore: ObservableObject {
     private let key = "savedMacs.v1"
     private let vpn = VPNController.shared
     private var idleDisconnect: Task<Void, Never>?
+    private var sleepCanceled: Set<UUID> = []
 
     init() {
         if let data = UserDefaults.standard.data(forKey: key),
@@ -62,7 +65,7 @@ final class MacStore: ObservableObject {
 
     func isBusy(_ m: SavedMac) -> Bool {
         switch status[m.id] ?? .unknown {
-        case .checking, .connectingVPN, .waking, .sleeping: return true
+        case .checking, .connectingVPN, .waking, .sleeping, .sleepPending: return true
         default: return false
         }
     }
@@ -161,21 +164,60 @@ final class MacStore: ObservableObject {
             : "起きませんでした。Macの「ネットワークアクセスによるスリープ解除」を確認してください")
     }
 
-    /// スリープ: エージェントに命令 → 応答がなくなるまで確認
+    /// スリープ前にMacで表示するカウントダウン（秒）。設定画面で変更
+    static var sleepDelay: Int {
+        let v = UserDefaults.standard.object(forKey: "sleepDelay") as? Int
+        return v ?? WakeProtocol.defaultSleepDelay
+    }
+
+    /// スリープ: Macにカウントダウンを出させ、終わって応答がなくなるまで見守る
     private func sleepNow(_ m: SavedMac) async {
         status[m.id] = .sleeping
-        guard await Waker.sendCommand(WakeProtocol.cmdSleep, host: m.ip) else {
+        sleepCanceled.remove(m.id)
+        let delay = Self.sleepDelay
+        guard let reply = await Waker.request("\(WakeProtocol.cmdSleep) \(delay)", host: m.ip) else {
             status[m.id] = .failed("スリープの命令が届きませんでした")
             return
         }
-        try? await Task.sleep(nanoseconds: 3_000_000_000)
-        for _ in 0..<10 {
-            if !(await Waker.ping(host: m.ip, timeout: 1.0)) {
-                status[m.id] = .asleep
-                return
+        // 古いエージェントは "OK" を返してすぐ寝る
+        var secs = delay
+        let parts = reply.split(separator: " ")
+        if parts.first == Substring(WakeProtocol.replyCountdown), parts.count > 1, let n = Int(parts[1]) { secs = n }
+        else if reply == "OK" { secs = 0 }
+        if secs > 0 { status[m.id] = .sleepPending(secs) }
+
+        // カウントダウン中は1秒ごとに残りを確認。キャンセルされたら止める
+        let deadline = Date().addingTimeInterval(TimeInterval(secs) + 25)
+        var misses = 0
+        while Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            if sleepCanceled.contains(m.id) { return }   // iPhoneで中止した
+            let reply = await Waker.request(WakeProtocol.cmdPing, host: m.ip, timeout: 1.2)
+            if sleepCanceled.contains(m.id) { return }
+            guard let r = reply else {
+                misses += 1
+                if misses >= 2 { status[m.id] = .asleep; return }   // 応答がなくなった＝寝た
+                continue
             }
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            misses = 0
+            let p = r.split(separator: " ")
+            if p.count >= 3, p[1] == Substring(WakeProtocol.replyPending), let n = Int(p[2]) {
+                status[m.id] = .sleepPending(n)
+            } else if p.count >= 2, p[1] == Substring(WakeProtocol.replyCanceled) {
+                status[m.id] = .canceledOnMac
+                return
+            } else {
+                status[m.id] = .sleeping    // カウントダウンが終わり、眠りに入るところ
+            }
         }
         status[m.id] = .online
+    }
+
+    /// iPhoneからスリープを中止
+    func cancelSleep(_ m: SavedMac) async {
+        sleepCanceled.insert(m.id)
+        status[m.id] = .online
+        _ = await Waker.request(WakeProtocol.cmdCancel, host: m.ip)
+        scheduleIdleDisconnect()
     }
 }

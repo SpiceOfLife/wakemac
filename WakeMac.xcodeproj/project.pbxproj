@@ -15,6 +15,7 @@
 		FD16DB1C56596A35F59ED2CF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Waker.swift; sourceTree = "<group>"; };
 		EA6A291AFBA5E3BEC72B7684 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentServer.swift; sourceTree = "<group>"; };
 		CDD45F22A28076FAD99C6F8B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInfo.swift; sourceTree = "<group>"; };
+		D06304EFE3E94E6BD48B6250 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepCountdown.swift; sourceTree = "<group>"; };
 		75B12881C8C5C275AC3C736F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeMacAgentApp.swift; sourceTree = "<group>"; };
 		8092B2ED663A09450449ECB2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Protocol.swift; sourceTree = "<group>"; };
 		2A170F77CB6F0654C8ED60E5 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -24,7 +25,7 @@
 		7C7A388CFBC31C29E1952E08 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WakeMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BF974BF0A92E9B34BEC1B0FC = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WakeMac Agent.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AEE9EFEEFB633AFD78C99CFA = {isa = PBXGroup; children = (8155BF31FFF83741712333E6, B1C09DB763271563B26E2F04, 783032983D71BE3462F5DA0F, 4F83A26D19DF458F6AB73B13, B6ADD8BC0A72CF688723E31C, B39BD0F5DA70BF802D691362, 291ED14C74F2418FB3EAF49F, FD16DB1C56596A35F59ED2CF, 2A170F77CB6F0654C8ED60E5, 178135C5722326F5C3A024BD); path = iOS; sourceTree = "<group>"; };
-		B0A322A289DC95B1BD489C96 = {isa = PBXGroup; children = (EA6A291AFBA5E3BEC72B7684, CDD45F22A28076FAD99C6F8B, 75B12881C8C5C275AC3C736F, D618AF8BD6C427361A29C2DE, 2BA1C7D740741F60212C91EA); path = macOS; sourceTree = "<group>"; };
+		B0A322A289DC95B1BD489C96 = {isa = PBXGroup; children = (EA6A291AFBA5E3BEC72B7684, CDD45F22A28076FAD99C6F8B, D06304EFE3E94E6BD48B6250, 75B12881C8C5C275AC3C736F, D618AF8BD6C427361A29C2DE, 2BA1C7D740741F60212C91EA); path = macOS; sourceTree = "<group>"; };
 		099515A1F1858E3EFE6B9364 = {isa = PBXGroup; children = (8092B2ED663A09450449ECB2); path = Shared; sourceTree = "<group>"; };
 		F0220EF8F17ECEBD49AC2FAE = {isa = PBXGroup; children = (7C7A388CFBC31C29E1952E08, BF974BF0A92E9B34BEC1B0FC); name = Products; sourceTree = "<group>"; };
 		7CB4F5C86BC1495BE5275A82 = {isa = PBXGroup; children = (AEE9EFEEFB633AFD78C99CFA, B0A322A289DC95B1BD489C96, 099515A1F1858E3EFE6B9364, F0220EF8F17ECEBD49AC2FAE); sourceTree = "<group>"; };
@@ -47,9 +48,10 @@
 		40BA57705DD5881490B786AC = {isa = PBXNativeTarget; buildConfigurationList = C6C5A2881A00284204DD95F6; buildPhases = (6C988B95119B3A2CB12B9B8E, BA592C2C1CCE24C4DB7C45C6, 39BF3D1A39B54A328368734D); buildRules = (); dependencies = (); name = "WakeMac"; productName = "WakeMac"; productReference = 7C7A388CFBC31C29E1952E08; productType = "com.apple.product-type.application"; };
 		9C1819ED58464A26BD2F1652 = {isa = PBXBuildFile; fileRef = EA6A291AFBA5E3BEC72B7684; };
 		0853B7C1FC992CEEC773E470 = {isa = PBXBuildFile; fileRef = CDD45F22A28076FAD99C6F8B; };
+		B96838CF77278CCF1FC33449 = {isa = PBXBuildFile; fileRef = D06304EFE3E94E6BD48B6250; };
 		858E5EA9A02A2370E06D3028 = {isa = PBXBuildFile; fileRef = 75B12881C8C5C275AC3C736F; };
 		9F129CDA95166FB3035BC525 = {isa = PBXBuildFile; fileRef = 8092B2ED663A09450449ECB2; };
-		81195744A4D8C87E0E6EBE8B = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (9C1819ED58464A26BD2F1652, 0853B7C1FC992CEEC773E470, 858E5EA9A02A2370E06D3028, 9F129CDA95166FB3035BC525); runOnlyForDeploymentPostprocessing = 0; };
+		81195744A4D8C87E0E6EBE8B = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (9C1819ED58464A26BD2F1652, 0853B7C1FC992CEEC773E470, B96838CF77278CCF1FC33449, 858E5EA9A02A2370E06D3028, 9F129CDA95166FB3035BC525); runOnlyForDeploymentPostprocessing = 0; };
 		ECDEE0BD834A012D37BFFC25 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		E0FD77D850393632B28CFEE8 = {isa = PBXBuildFile; fileRef = D618AF8BD6C427361A29C2DE; };
 		232EEAA75D2E1CA495190A54 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (E0FD77D850393632B28CFEE8); runOnlyForDeploymentPostprocessing = 0; };

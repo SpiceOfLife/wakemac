@@ -13,12 +13,25 @@ struct VPNSettingsView: View {
     @State private var testing = false
     @State private var message: String?
     @State private var messageIsError = false
+    @AppStorage("sleepDelay") private var sleepDelay = WakeProtocol.defaultSleepDelay
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
+                    Stepper(value: $sleepDelay, in: 0...120, step: 5) {
+                        LabeledContent("カウントダウン", value: sleepDelay == 0 ? "なし（すぐスリープ）" : "\(sleepDelay)秒")
+                    }
+                } header: {
+                    Text("スリープするとき")
+                } footer: {
+                    Text("Macの画面にカウントダウンを出してからスリープします。Macの前にいる人は「キャンセル」で止められます。")
+                }
+
+                Section {
                     Toggle("外出先ではVPNで家につなぐ", isOn: $draft.enabled)
+                } header: {
+                    Text("外出先から使う")
                 } footer: {
                     Text("家のWi‑Fiにいないときだけ、アプリを開いている間VPNで家のネットワークにつなぎ、閉じると切断します。")
                 }
@@ -82,7 +95,7 @@ struct VPNSettingsView: View {
                     }
                 }
             }
-            .navigationTitle("外出先から使う")
+            .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

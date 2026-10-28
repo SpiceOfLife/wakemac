@@ -82,16 +82,35 @@ final class AgentServer: ObservableObject {
     private func handle(_ conn: NWConnection) {
         conn.start(queue: .main)
         conn.receive(minimumIncompleteLength: 1, maximumLength: 64) { data, _, _, _ in
-            let cmd = String(decoding: data ?? Data(), as: UTF8.self)
+            let line = String(decoding: data ?? Data(), as: UTF8.self)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            switch cmd {
-            case WakeProtocol.cmdPing:
-                Self.reply(conn, WakeProtocol.cmdPong)
-            case WakeProtocol.cmdSleep:
-                Self.reply(conn, "OK")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Self.sleepNow() }
-            default:
-                conn.cancel()
+            let parts = line.split(separator: " ")
+            let cmd = parts.first.map(String.init) ?? ""
+            Task { @MainActor in
+                let countdown = SleepCountdown.shared
+                switch cmd {
+                case WakeProtocol.cmdPing:
+                    if countdown.isActive {
+                        Self.reply(conn, "\(WakeProtocol.cmdPong) \(WakeProtocol.replyPending) \(countdown.remaining)")
+                    } else if countdown.lastCanceledByUser {
+                        Self.reply(conn, "\(WakeProtocol.cmdPong) \(WakeProtocol.replyCanceled)")
+                    } else {
+                        Self.reply(conn, WakeProtocol.cmdPong)
+                    }
+                case WakeProtocol.cmdSleep:
+                    let secs = parts.count > 1 ? max(0, min(600, Int(parts[1]) ?? WakeProtocol.defaultSleepDelay))
+                                               : WakeProtocol.defaultSleepDelay
+                    Self.reply(conn, "\(WakeProtocol.replyCountdown) \(secs)")
+                    // 返事が届いてから始める
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        countdown.start(seconds: secs) { Self.sleepNow() }
+                    }
+                case WakeProtocol.cmdCancel:
+                    countdown.cancel(byUser: false)
+                    Self.reply(conn, WakeProtocol.replyCanceled)
+                default:
+                    conn.cancel()
+                }
             }
         }
     }
@@ -100,7 +119,7 @@ final class AgentServer: ObservableObject {
         conn.send(content: Data((text + "\n").utf8), completion: .contentProcessed { _ in conn.cancel() })
     }
 
-    nonisolated private static func sleepNow() {
+    nonisolated static func sleepNow() {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
         p.arguments = ["sleepnow"]

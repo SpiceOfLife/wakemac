@@ -107,32 +107,40 @@ enum Waker {
 
     /// エージェントにコマンドを送り、応答があれば true
     static func sendCommand(_ cmd: String, host: String, port: UInt16 = WakeProtocol.controlPort, timeout: TimeInterval = 2.0) async -> Bool {
-        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+        await request(cmd, host: host, port: port, timeout: timeout) != nil
+    }
+
+    /// エージェントにコマンドを送り、応答の1行を返す（応答なしは nil）
+    static func request(_ cmd: String, host: String, port: UInt16 = WakeProtocol.controlPort, timeout: TimeInterval = 2.0) async -> String? {
+        await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
             let conn = NWConnection(host: NWEndpoint.Host(host),
                                     port: NWEndpoint.Port(rawValue: port)!,
                                     using: .tcp)
             var finished = false
-            let finish = { (ok: Bool) in
-                guard !finished else { return }
-                finished = true
-                conn.cancel()
-                cont.resume(returning: ok)
+            let finish = { (reply: String?) in
+                queue.async {
+                    guard !finished else { return }
+                    finished = true
+                    conn.cancel()
+                    cont.resume(returning: reply)
+                }
             }
             conn.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
                     conn.send(content: Data((cmd + "\n").utf8), completion: .contentProcessed { _ in })
-                    conn.receive(minimumIncompleteLength: 1, maximumLength: 64) { data, _, _, _ in
-                        finish(!(data ?? Data()).isEmpty)
+                    conn.receive(minimumIncompleteLength: 1, maximumLength: 128) { data, _, _, _ in
+                        guard let data, !data.isEmpty else { finish(nil); return }
+                        finish(String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines))
                     }
                 case .failed, .cancelled:
-                    finish(false)
+                    finish(nil)
                 default:
                     break
                 }
             }
             conn.start(queue: queue)
-            queue.asyncAfter(deadline: .now() + timeout) { finish(false) }
+            queue.asyncAfter(deadline: .now() + timeout) { finish(nil) }
         }
     }
 }

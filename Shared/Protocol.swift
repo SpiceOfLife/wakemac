@@ -22,5 +22,12 @@ enum WakeProtocol {
     // TCPコマンド
     static let cmdPing = "PING"
     static let cmdPong = "PONG"
-    static let cmdSleep = "SLEEP"
+    static let cmdSleep = "SLEEP"        // "SLEEP 10" = 10秒のカウントダウン後にスリープ
+    static let cmdCancel = "CANCEL"      // カウントダウンを止める
+    static let defaultSleepDelay = 10
+
+    // 応答
+    static let replyCountdown = "COUNTDOWN"   // "COUNTDOWN 10"
+    static let replyPending = "PENDING"       // "PONG PENDING 7"（カウントダウン中・残り秒）
+    static let replyCanceled = "CANCELED"     // "PONG CANCELED"（直前にMac側で止められた）
 }
