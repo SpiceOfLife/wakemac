@@ -126,9 +126,16 @@ struct WakeCard: View {
                 .buttonStyle(.bordered)
                 .controlSize(large ? .large : .regular)
             } else {
-                Button("状態を確認") { Task { await store.refreshAll() } }
-                    .font(.footnote)
-                    .disabled(busy)
+                VStack(spacing: 2) {
+                    Button("今すぐ確認") { Task { await store.refreshAll(auto: false) } }
+                        .font(.footnote)
+                        .disabled(busy)
+                    if let t = store.lastChecked {
+                        Text("10秒ごとに自動確認・最終 \(t.formatted(date: .omitted, time: .standard))")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
             }
 
             Text("\(mac.ip)  ·  \(mac.mac)")

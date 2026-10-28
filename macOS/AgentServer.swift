@@ -1,5 +1,7 @@
 import Foundation
 import Network
+import AppKit
+import IOKit.pwr_mgt
 
 /// Bonjourで自分を広告し、iPhoneからの PING / SLEEP を受け付ける小さなTCPサーバー
 @MainActor
@@ -10,6 +12,10 @@ final class AgentServer: ObservableObject {
     @Published private(set) var isRunning = false
     @Published private(set) var lastError: String?
     @Published private(set) var wakeForNetworkEnabled: Bool?
+    /// システムがスリープに入ってから、完全に起きる（画面がつく）までの間 true。
+    /// この間に通信で一時的に目覚めても（ダークウェイク）「スリープ中」と答える
+    @Published private(set) var systemAsleep = false
+    private var activityAssertion: IOPMAssertionID = 0
 
     private var listener: NWListener?
     private var controlListener: NWListener?
@@ -23,6 +29,7 @@ final class AgentServer: ObservableObject {
         guard !started else { return }
         started = true
         refreshWakeSetting()
+        observeSleep()
         do {
             let params = NWParameters.tcp
             params.allowLocalEndpointReuse = true
@@ -64,6 +71,38 @@ final class AgentServer: ObservableObject {
         pathMonitor.start(queue: .main)
     }
 
+    /// スリープ／起動の通知を受けて、状態とBonjourの広告を更新する
+    private func observeSleep() {
+        let nc = NSWorkspace.shared.notificationCenter
+        nc.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in
+                AgentServer.shared.systemAsleep = true
+                AgentServer.shared.publish()   // 眠る直前に「asleep」を広告（Sleep Proxy にも引き継がれる）
+            }
+        }
+        // didWake は画面がつく「完全な起動」のときだけ届く（通信によるダークウェイクでは届かない）
+        nc.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in
+                AgentServer.shared.systemAsleep = false
+                AgentServer.shared.publish()
+            }
+        }
+        nc.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in
+                guard AgentServer.shared.systemAsleep else { return }
+                AgentServer.shared.systemAsleep = false
+                AgentServer.shared.publish()
+            }
+        }
+    }
+
+    /// ダークウェイク中でも、ユーザー操作があったことにして画面をつけ、完全に起こす
+    func wakeFully() {
+        IOPMAssertionDeclareUserActivity("WakeMac: iPhoneからの起動" as CFString, kIOPMUserActiveLocal, &activityAssertion)
+        systemAsleep = false
+        publish()
+    }
+
     /// 現在のネットワーク情報をTXTレコードに載せて広告し直す
     func publish() {
         let newInfo = NetworkInfo.current()
@@ -71,6 +110,7 @@ final class AgentServer: ObservableObject {
         guard let listener else { return }
         var txt = NWTXTRecord()
         txt[WakeProtocol.keyName] = macName
+        txt[WakeProtocol.keyState] = systemAsleep ? WakeProtocol.stateAsleep : WakeProtocol.stateAwake
         if let i = newInfo {
             txt[WakeProtocol.keyMAC] = i.mac
             txt[WakeProtocol.keyIP] = i.ip
@@ -90,7 +130,9 @@ final class AgentServer: ObservableObject {
                 let countdown = SleepCountdown.shared
                 switch cmd {
                 case WakeProtocol.cmdPing:
-                    if countdown.isActive {
+                    if AgentServer.shared.systemAsleep {
+                        Self.reply(conn, "\(WakeProtocol.cmdPong) \(WakeProtocol.replySleeping)")
+                    } else if countdown.isActive {
                         Self.reply(conn, "\(WakeProtocol.cmdPong) \(WakeProtocol.replyPending) \(countdown.remaining)")
                     } else if countdown.lastCanceledByUser {
                         Self.reply(conn, "\(WakeProtocol.cmdPong) \(WakeProtocol.replyCanceled)")
@@ -105,6 +147,9 @@ final class AgentServer: ObservableObject {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         countdown.start(seconds: secs) { Self.sleepNow() }
                     }
+                case WakeProtocol.cmdWake:
+                    AgentServer.shared.wakeFully()
+                    Self.reply(conn, "OK")
                 case WakeProtocol.cmdCancel:
                     countdown.cancel(byUser: false)
                     Self.reply(conn, WakeProtocol.replyCanceled)
