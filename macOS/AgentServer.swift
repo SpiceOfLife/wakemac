@@ -12,6 +12,7 @@ final class AgentServer: ObservableObject {
     @Published private(set) var wakeForNetworkEnabled: Bool?
 
     private var listener: NWListener?
+    private var controlListener: NWListener?
     private let pathMonitor = NWPathMonitor()
 
     var macName: String { Host.current().localizedName ?? "Mac" }
@@ -42,6 +43,16 @@ final class AgentServer: ObservableObject {
             listener = l
             publish()
             l.start(queue: .main)
+
+            // 状態確認・スリープ用（Bonjour では広告しない）
+            let cparams = NWParameters.tcp
+            cparams.allowLocalEndpointReuse = true
+            let c = try NWListener(using: cparams, on: NWEndpoint.Port(rawValue: WakeProtocol.controlPort)!)
+            c.newConnectionHandler = { [weak self] conn in
+                Task { @MainActor in self?.handle(conn) }
+            }
+            controlListener = c
+            c.start(queue: .main)
         } catch {
             lastError = error.localizedDescription
         }

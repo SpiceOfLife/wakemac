@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Darwin
 
 /// Wake-on-LAN とエージェントとの通信
 enum Waker {
@@ -28,7 +29,7 @@ enum Waker {
     /// 3. エージェントのTCPポートへ接続 → Bonjour Sleep Proxy がいればMacが起こされる
     static func wake(_ m: SavedMac) async {
         await sendMagicPackets(m)
-        _ = await sendCommand(WakeProtocol.cmdPing, host: m.ip, timeout: 1.0)
+        _ = await sendCommand(WakeProtocol.cmdPing, host: m.ip, port: WakeProtocol.agentPort, timeout: 1.0)
     }
 
     static func sendMagicPackets(_ m: SavedMac) async {
@@ -77,15 +78,38 @@ enum Waker {
         }
     }
 
-    static func ping(host: String) async -> Bool {
-        await sendCommand(WakeProtocol.cmdPing, host: host, timeout: 1.5)
+    /// 起きているか確認（広告していない制御ポートを使うので、寝ているMacを起こさない）
+    static func ping(host: String, timeout: TimeInterval = 1.5) async -> Bool {
+        await sendCommand(WakeProtocol.cmdPing, host: host, port: WakeProtocol.controlPort, timeout: timeout)
+    }
+
+    /// iPhoneが今、Macと同じサブネット（家のWi‑Fi）にいるか
+    static func isOnSameSubnet(as m: SavedMac) -> Bool {
+        guard let target = ipv4(m.ip), let mask = ipv4(m.mask) else { return false }
+        var head: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&head) == 0, let first = head else { return false }
+        defer { freeifaddrs(head) }
+        for p in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            guard let sa = p.pointee.ifa_addr, sa.pointee.sa_family == UInt8(AF_INET) else { continue }
+            let name = String(cString: p.pointee.ifa_name)
+            guard name.hasPrefix("en") else { continue }   // Wi‑Fi / 有線のみ（VPNの ipsec / utun は除く）
+            let mine = sa.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { UInt32(bigEndian: $0.pointee.sin_addr.s_addr) }
+            if mine & mask == target & mask { return true }
+        }
+        return false
+    }
+
+    private static func ipv4(_ s: String) -> UInt32? {
+        let parts = s.split(separator: ".").compactMap { UInt32($0) }
+        guard parts.count == 4, parts.allSatisfy({ $0 < 256 }) else { return nil }
+        return parts.reduce(0) { ($0 << 8) | $1 }
     }
 
     /// エージェントにコマンドを送り、応答があれば true
-    static func sendCommand(_ cmd: String, host: String, timeout: TimeInterval = 2.0) async -> Bool {
+    static func sendCommand(_ cmd: String, host: String, port: UInt16 = WakeProtocol.controlPort, timeout: TimeInterval = 2.0) async -> Bool {
         await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
             let conn = NWConnection(host: NWEndpoint.Host(host),
-                                    port: NWEndpoint.Port(rawValue: WakeProtocol.agentPort)!,
+                                    port: NWEndpoint.Port(rawValue: port)!,
                                     using: .tcp)
             var finished = false
             let finish = { (ok: Bool) in
